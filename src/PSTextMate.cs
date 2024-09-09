@@ -7,13 +7,14 @@ using TextMateSharp.Grammars;
 using TextMateSharp.Themes;
 using TextMateSharp.Registry;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 
 namespace PwshSpectreConsole;
 public class TextMate
 {
 
-    public static Rows[]? String(string[] lines, ThemeName themeName, string grammarId)
+    public static Rows? String(string[] lines, ThemeName themeName, string grammarId)
     {
         RegistryOptions options = new RegistryOptions(themeName);
         Registry registry = new Registry(options);
@@ -26,7 +27,7 @@ public class TextMate
         return Write(lines, theme, grammar);
     }
 
-    public static Rows[]? ReadFile(string fullName, ThemeName themeName, string Extension)
+    public static Rows? ReadFile(string fullName, ThemeName themeName, string Extension)
     {
         string[] lines = File.ReadAllLines(fullName);
         RegistryOptions options = new RegistryOptions(themeName);
@@ -40,10 +41,10 @@ public class TextMate
         return Write(lines, theme, grammar);
     }
 
-    internal static Rows[]? Write(string[] lines, Theme theme, IGrammar grammar)
+    internal static Rows? Write(string[] lines, Theme theme, IGrammar grammar)
     {
         StringBuilder builder = new StringBuilder();
-        List<Rows> rows = new List<Rows>();
+        List<IRenderable> rows = new List<IRenderable>();
         try
         {
             int ini = Environment.TickCount;
@@ -72,13 +73,13 @@ public class TextMate
                     var (textEscaped, style) = WriteToken(line.SubstringAtIndexes(startIndex, endIndex), foreground, background, fontStyle, theme);
                     builder.AppendWithStyle(style, textEscaped);
                 }
-                var row = new Rows(
-                    new Markup(builder.ToString())
-                );
-                rows.Add(row);
+                // Preserve empty lines in rows output by using Text.Empty, Markup is stripping them for some reason
+                var lineMarkup = builder.ToString();
+                rows.Add(string.IsNullOrEmpty(lineMarkup) ? Text.Empty : new Markup(lineMarkup));
                 builder.Clear();
             }
-            return rows.ToArray();
+            // Rows is a collection already, we don't need a rows() of rows()
+            return new Rows(rows.ToArray());
         }
         catch (Exception ex)
         {
@@ -150,7 +151,7 @@ internal static class StringBuilderExtensions
     }
     public static StringBuilder AppendWithStyle(this StringBuilder builder, Style? style, string? value)
     {
-        value ??= string.Empty;
+        value ??= "x";
         if (style != null)
         {
             return builder.Append('[')
